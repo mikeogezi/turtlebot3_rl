@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-from gc import callbacks
-from statistics import mode
-from tkinter.tix import WINDOW
 import rospy
 import rospkg
 import gym
@@ -12,17 +9,14 @@ from stable_baselines3.common.monitor import Monitor
 from turtlebot3_env import TurtleBot3Env, IMG_HEIGHT, IMG_WIDTH, NUM_CHANNELS
 
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten, Conv2D, Permute, MaxPooling2D
+from keras.layers import Dense, Activation, Flatten, Conv2D, MaxPooling2D
 from keras.optimizer_v2.adam import Adam
 import keras.backend as K
 
 from rl.agents.dqn import DQNAgent
 from rl.policy import LinearAnnealedPolicy, BoltzmannQPolicy, EpsGreedyQPolicy
 from rl.memory import SequentialMemory
-from rl.core import Processor
 from rl.callbacks import FileLogger, ModelIntervalCheckpoint
-
-import numpy as np
 import pathlib
 
 WINDOW_LENGTH = 4
