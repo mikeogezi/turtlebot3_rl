@@ -1,2 +1,3 @@
 __pycache__
 weights.bin.*
+training_results.monitor.csv
