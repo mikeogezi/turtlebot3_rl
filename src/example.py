@@ -11,6 +11,7 @@ import cv2
 from cv_bridge import CvBridge
 import time
 import tf
+import numpy as np
 
 IMG_WIDTH = 400
 IMG_HEIGHT = 400
@@ -29,8 +30,8 @@ class Main():
 
         self.base_frame = rospy.get_param('~base_frame', '/base_link')
         self.odom_frame = rospy.get_param('~odom_frame', '/odom')
-        self.cam_frame = '/camera/image_raw'
-        self.scan_frame = '/scan'
+        self.cam_frame = rospy.get_param('~cam_frame','/camera/image_raw')
+        self.scan_frame = rospy.get_param('~scan_frame','/scan')
 
         self.cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
@@ -55,11 +56,12 @@ class Main():
         rospy.loginfo('Resetting...')
 
     def scan_cb(self, msg):
-        rospy.loginfo('Receiving scanning message...')
+        rospy.logdebug('Receiving scanning message...')
         self.latest_scan_reading = None
+        self.gazebo.__un
 
     def odom_cb(self, msg):
-        rospy.loginfo('Receiving odometry message...')
+        rospy.logdebug('Receiving odometry message...')
         self.latest_odom_reading = None
 
     def image_cb(self, msg):
@@ -67,7 +69,7 @@ class Main():
         if not self.logged_res:
             height, width, _ = cv_image.shape
             rospy.loginfo(
-                'Original image resolution: {}x{}'.format(width, height))
+                'Original image resolution: {} x {}'.format(width, height))
             self.logged_res = True
         cv_image = cv2.resize(cv_image, (IMG_HEIGHT, IMG_WIDTH))
         self.latest_image = cv_image

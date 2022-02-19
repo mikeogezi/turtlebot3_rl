@@ -7,19 +7,15 @@ from cv_bridge import CvBridge
 
 bridge = CvBridge()
 
-
 def image_cb(data):
     cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
-    rospy.loginfo('err')
     cv2.imshow('raw image', cv_image)
-    cv2.waitKey(3)
+    cv2.waitKey(1)
 
-
-def main():
+def stream():
     rospy.init_node('turtlebot3_rl_camera')
     rospy.Subscriber("/camera/image_raw", Image, image_cb)
     rospy.spin()
 
-
 if __name__ == "__main__":
-    main()
+    stream()
