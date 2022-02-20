@@ -29,7 +29,8 @@ class Main():
         pack = rospkg.RosPack()
         self.weights_path = str(pathlib.Path(pack.get_path('turtlebot3_rl')) / weights_path)
 
-        self.max_steps_per_episode = 50
+        self.max_steps_per_episode = 10000
+        self.total_steps = 100000
         self.samp_freq = 10
         self.max_episodes = 2
         self.env = gym.make('TurtleBot3Env-v1', max_steps_per_episode=self.max_steps_per_episode, hz=self.samp_freq)
@@ -43,8 +44,9 @@ class Main():
         self.dqn_model = self.build_model()
 
         self.load_model()
-        cbs = [ModelIntervalCheckpoint(self.weights_path, verbose=1, interval=self.max_steps_per_episode)]
-        self.dqn_model.fit(self.env, nb_steps=1000, visualize=True, log_interval=10, callbacks=cbs)
+        cbs = [ModelIntervalCheckpoint(self.weights_path, verbose=1, interval=1000)]
+        self.dqn_model.fit(self.env, nb_steps=self.total_steps, nb_max_episode_steps=self.max_steps_per_episode,
+            visualize=str(os.environ['VISUALIZE']) == 'true', log_interval=100, callbacks=cbs)
         self.env.stop()
 
     def fit_manually(self):
@@ -76,20 +78,21 @@ class Main():
     def build_model(self):
         model = Sequential()
         input_shape = (WINDOW_LENGTH, IMG_WIDTH, IMG_HEIGHT, NUM_CHANNELS)
-        model.add(Conv2D(64, (8, 8), input_shape=input_shape, strides=(4, 4), activation='relu'))
+        model.add(Conv2D(32, (8, 8), input_shape=input_shape, strides=(4, 4), activation='relu'))
+        model.add(Conv2D(64, (4, 4), strides=(2, 2), activation='relu'))
+        model.add(Conv2D(64, (4, 4), strides=(1, 1), activation='relu'))
         model.add(Flatten())
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(256, activation='relu'))
         model.add(Dense(self.num_actions, activation='linear'))
 
         print(model.summary())
 
-        memory = SequentialMemory(limit=int(1e5), window_length=WINDOW_LENGTH)
+        memory = SequentialMemory(limit=int(1e6), window_length=WINDOW_LENGTH)
         policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', 
-            value_max=1., value_min=.1, value_test=.05, nb_steps=self.max_steps_per_episode)
+            value_max=.35, value_min=.075, value_test=.05, nb_steps=self.total_steps)
         
-        dqn = DQNAgent(model=model, policy=policy, gamma=.99, memory=memory,
-            nb_steps_warmup=5, nb_actions=self.num_actions)
+        dqn = DQNAgent(model=model, policy=policy, gamma=.995, memory=memory,
+            nb_actions=self.num_actions, train_interval=4, delta_clip=1.)
         dqn.compile(Adam(learning_rate=2.5e-4), metrics=['mae'])
         return dqn
 
@@ -110,7 +113,7 @@ class Main():
 
         memory = SequentialMemory(limit=int(1e5), window_length=4)
         policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', 
-            value_max=1., value_min=.1, value_test=.05, nb_steps=self.max_steps_per_episode)
+            value_max=1., value_min=.1, value_test=.05, nb_steps=self.total_steps)
         
         dqn = DQNAgent(model=model, policy=policy, gamma=.99, memory=memory,
             nb_steps_warmup=5, nb_actions=2)

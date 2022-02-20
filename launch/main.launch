@@ -7,13 +7,16 @@
   <arg name="y_pos" default="5.3"/>
   <arg name="z_pos" default="0.0"/>
 
+  <arg name="headless"/>
+  <arg name="gui"/>
+
   <!-- We use empty_world.launch to start gazebo, changing only the name of the world to be launched -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="debug" value="false" />
-    <arg name="gui" value="true" />
+    <arg name="gui" value="$(arg gui)" />
     <arg name="paused" value="false"/>
     <arg name="use_sim_time" value="true"/>
-    <arg name="headless" value="false"/>
+    <arg name="headless" value="$(arg headless)"/>
     <arg name="world_name" value="$(find turtlebot3_rl)/world/course.world" />
   </include>
 

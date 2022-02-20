@@ -18,12 +18,13 @@ registration = register(
     max_episode_steps=None,
 )
 
-IMG_HEIGHT = 32
-IMG_WIDTH = 32
+IMG_HEIGHT = 48
+IMG_WIDTH = 48
+NUM_CHANNELS = 1
 DISP_HEIGHT = 320
 DISP_WIDTH = 320
-NUM_CHANNELS = 3
-FINAL_REWARD = 1.
+FINAL_REWARD = 10000.
+OFF_ROAD_REWARD = -100. 
 
 FILTERS = {
   'red': {
@@ -42,6 +43,12 @@ FILTERS = {
     'low': np.array([0, 0, 200]),
     'high': np.array([255, 55, 255]),
   }
+}
+
+BONUSES = {
+    'red': 3.,
+    'green': 2.,
+    'blue': 1.,
 }
 
 
@@ -80,14 +87,16 @@ class TurtleBot3Env(gym.Env):
         #     'linear_x': spaces.Box(low=0., high=.25, shape=(1,)),
         #     'angular_z': spaces.Box(low=-.25, high=.25, shape=(1,)),
         # })
-        self.linear_x_choices = 10
-        self.angular_z_choices = 10
+        self.rewards = []
+        self.linear_x_choices = 4
+        self.angular_z_choices = 5
         self.action_space = spaces.Discrete(self.linear_x_choices * self.angular_z_choices)
         self.observation_space = spaces.Box(
             low=0, high=255, shape=(IMG_HEIGHT, IMG_WIDTH, NUM_CHANNELS))
         self.reward_range = (-1, 1)
 
     def reset(self):
+        self.rewards.clear()
         self.step_count = 0
         self.gazebo.reset_sim()
         self.gazebo.unpause_sim()
@@ -107,8 +116,17 @@ class TurtleBot3Env(gym.Env):
         self.r.sleep()
 
         reward = self.__reward()
+        if reward == FINAL_REWARD:
+            self.stop()
+        
+        off = self.__outside_road_for_last_n_steps(15)
+        if off:
+            rospy.logwarn('Game over')
+            reward = OFF_ROAD_REWARD
+        
+        done = (reward == FINAL_REWARD) or (self.step_count >= self.max_steps_per_episode) or off
+        self.rewards.append(reward)
         obs = self.__observe()
-        done = reward == FINAL_REWARD or self.step_count >= self.max_steps_per_episode
         info = {}
 
         return obs, reward, done, info
@@ -119,8 +137,8 @@ class TurtleBot3Env(gym.Env):
     '''
     def __expand_action_code(self, action_code):
         if self.action_decoder_map is None:
-            linear_x_opts = np.linspace(0.05, 0.25, self.linear_x_choices)
-            angular_z_opts = np.linspace(-.25, .25, self.angular_z_choices)
+            linear_x_opts = np.linspace(0.05, 0.2, self.linear_x_choices)
+            angular_z_opts = np.linspace(-.2, .2, self.angular_z_choices)
             self.action_decoder_map = np.array(np.meshgrid(linear_x_opts, angular_z_opts)).T.reshape(-1, 2)
         
         action = self.action_decoder_map[action_code]
@@ -130,17 +148,20 @@ class TurtleBot3Env(gym.Env):
         }
 
     def __reward(self):
+        bonus = 0.
         self.__await_image_stream()
-        seen, dominance = self.__analyze_image(self.latest_image)
+        seen, dominance = self.__analyze_image()
         major_color = self.__get_major_color(seen)
         if major_color is None:
-            return -1.
+            return -2.
+        elif major_color in ['blue', 'green', 'red']:
+            bonus = BONUSES[major_color]
 
         (left_dominance, right_dominance) = dominance[major_color]
         at_stop = self.__detected_stop_sign(seen)
         if at_stop:
             return FINAL_REWARD
-        return -abs(left_dominance - right_dominance)
+        return -abs(left_dominance - right_dominance) + bonus
 
     def __get_major_color(self, seen_colors):
         max_ = 0.
@@ -152,9 +173,14 @@ class TurtleBot3Env(gym.Env):
                 max_color = i
         return max_color
 
-    def __outside_road(self, allowance=.1):
+    def __outside_road_for_last_n_steps(self, n=10):
+        seen, dominance = self.__analyze_image()
+        major_color = self.__get_major_color(seen)
+        return np.mean(self.rewards[-n:]) <= -.99 and major_color is None
+
+    def __outside_road(self, allowance=.95):
         self.__await_image_stream()
-        seen, dominance = self.__analyze_image(self.latest_image)
+        seen, dominance = self.__analyze_image()
         major_color = self.__get_major_color(seen)
         (left_dominance, right_dominance) = dominance[major_color]
         return abs(left_dominance - right_dominance) > allowance
@@ -170,12 +196,13 @@ class TurtleBot3Env(gym.Env):
 
     def __observe(self):
         self.__await_image_stream()
-        return self.latest_obs_image
+        return np.array(self.latest_obs_image).reshape((IMG_HEIGHT, IMG_WIDTH, NUM_CHANNELS)) / 255.
 
     def render(self, mode):
         if self.latest_image is not None and mode == 'human':
             self.rendering = True
-            cv2.imshow('TurtleBot3 Rendering', cv2.resize(self.latest_image, (DISP_HEIGHT, DISP_WIDTH)))
+            cv2.imshow('TurtleBot3 Rendering', self.latest_image)
+            # cv2.imshow('TurtleBot3 Vision', self.latest_obs_image)
             cv2.waitKey(5)
 
     def __await_topic_publisher_connections(self):
@@ -197,21 +224,21 @@ class TurtleBot3Env(gym.Env):
             rospy.loginfo(
                 'Original image resolution: {} x {}'.format(width, height))
             self.logged_res = True
-        self.latest_image = cv_image
-        self.latest_obs_image = cv2.resize(cv_image, (IMG_HEIGHT, IMG_WIDTH))
+        self.latest_image = cv2.resize(cv_image, (DISP_HEIGHT, DISP_WIDTH))
+        self.latest_obs_image = cv2.cvtColor(cv2.resize(self.latest_image, (IMG_HEIGHT, IMG_WIDTH)), cv2.COLOR_BGR2GRAY)
         
-    def __analyze_image(self, image):
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    def __analyze_image(self):
+        hsv = cv2.cvtColor(self.latest_image, cv2.COLOR_BGR2HSV)
         width_cutoff = DISP_WIDTH // 2
-        height_cuttoff = DISP_HEIGHT // 2
+        height_start = int(DISP_HEIGHT * .5)
         pixel_count = DISP_HEIGHT * DISP_WIDTH
         seen_colors = {}
         side_dominance = {}
 
         for color in FILTERS.keys():
             filtered_image = cv2.inRange(hsv, FILTERS[color]['low'], FILTERS[color]['high'])
-            left = filtered_image[:, :width_cutoff]
-            right = filtered_image[:, width_cutoff:]
+            left = filtered_image[height_start:, :width_cutoff]
+            right = filtered_image[height_start:, width_cutoff:]
             left_pct = np.sum(left == 255) / (pixel_count / 2.)
             right_pct = np.sum(right == 255) / (pixel_count / 2.)
             pct = (left_pct + right_pct) / 2.
@@ -231,6 +258,7 @@ class TurtleBot3Env(gym.Env):
         return (seen_colors, side_dominance)
 
     def stop(self):
+        rospy.loginfo('Stopping...')
         self.cmd_vel.publish(Twist())
 
     def __on_shutdown(self):
