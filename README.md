@@ -23,4 +23,4 @@ Teaching a TurtleBot 3 to follow a track using reinforcement learning.
 - 🚀
 
 ## Further work
-- Running a proper headless setup on more capable machines (This was trained in an Ubunut VM on my 2020 1.4GHz Macbook Pro)
+- Running a proper headless setup on more capable machines (This was trained in an Ubuntu VM on my 2020 1.4GHz Macbook Pro)
