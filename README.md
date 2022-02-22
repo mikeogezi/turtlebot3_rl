@@ -14,10 +14,13 @@ Teaching a TurtleBot 3 to follow a track using reinforcement learning.
 ## Replicating training
 - Install ROS Noetic
 - Install Gazebo
-- Install OpenAI Gym, and Keras RL
+- Install OpenAI Gym and others with `pip install -r requirements.txt`
 - Pull this repo to your `~/catkin_ws/src` folder
 - Run `catkin_make` in your `~/catkin_ws` folder
 - Run `roscore` in one terminal
-- Run `roslaunch turtlebot3_rl main.launch gui:=false headless:=true` in another
-- Run `VISUALIZE=false rosrun turtlebot3_rl main.py` in yet a third
+- Run `roslaunch turtlebot3_rl main.launch gui:=false headless:=true` in another (configure the arguments accordingly to render the environment in Gazebo)
+- Run `VISUALIZE=false rosrun turtlebot3_rl main.py` in yet a third (configure `VISUALIZE` env var accordingly to render the camera stream)
 - 🚀
+
+## Further work
+- Running a proper headless setup on more capable machines (This was trained in an Ubunut VM on my 2020 1.4GHz Macbook Pro)
