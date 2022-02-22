@@ -1,6 +1,6 @@
 # TurtleBot3 RL 🤖⚙️
 
-Teaching a TurtleBot 3 to follow a track using reinforcement learning.
+Teaching a TurtleBot 3 to follow a track using reinforcement learning. Credits to [Kalvin](https://github.com/k----n), and [Professor Matt Taylor](https://drmatttaylor.net/) for the track, and the original 3d assets.
 
 ![Demo GIF](media/turtlebot3_rl.gif)
 
