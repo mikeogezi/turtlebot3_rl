@@ -8,7 +8,7 @@ Teaching a TurtleBot 3 to follow a track using reinforcement learning. Credits t
 - Trained a DQN on a Linear Annealled Policy based on Epsilon Greedy
 - Fed the TurtleBot's camera feed to a CNN
 - Negative reward for being outside the middle of the track
-- Large maginitude negative reward for veering far off the track
+- Large magnitude negative reward for veering far off the track
 - Large positive reward for reaching th finish line
 
 ## Replicating training
